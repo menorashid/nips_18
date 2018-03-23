@@ -140,17 +140,19 @@ class Dynamic_Capsule_Model_Super(nn.Module):
 
         if self.reconstruct:
             reconstruction_loss = self.reconstruction_loss(reconstructions, images)
-            reconstruction_loss = (0.0000001 * reconstruction_loss)/batch_size
+            reconstruction_loss = (0.00001 * reconstruction_loss)/batch_size
 
             if hasattr(self, 'loss_weights') and self.loss_weights is not None:
                 reconstruction_loss = self.loss_weights[1]*reconstruction_loss
                 margin_loss = self.loss_weights[0]*margin_loss
             
             total_loss = margin_loss + reconstruction_loss
-            return total_loss, margin_loss, reconstruction_loss
+        
         else:
             total_loss = margin_loss
-            return total_loss
+            reconstruction_loss = margin_loss
+        
+        return total_loss, margin_loss, reconstruction_loss
         
 
     def margin_loss_multi(self,  classes, labels, labels_au, bin_au):
@@ -245,24 +247,13 @@ class Dynamic_Capsule_Model_Super(nn.Module):
 
 class Dynamic_Capsule_Model(Dynamic_Capsule_Model_Super):
 
-    def __init__(self,n_classes,conv_layers,caps_layers,r, reconstruct = False,class_weights=None):
+    def __init__(self,n_classes,conv_layers,caps_layers,r, reconstruct = False,class_weights=None,loss_weights = None):
         super(Dynamic_Capsule_Model, self).__init__()
-        print r
         self.class_weights = class_weights
         self.num_classes = n_classes
         self.reconstruct = reconstruct
-        if self.reconstruct:
-            self.reconstruction_loss = nn.MSELoss(size_average=False)
-        # self.num_classes = n_classes
-        # self.conv1 = nn.Conv2d(in_channels=1, out_channels=256, kernel_size=9, stride=1)
-        # self.primary_capsules = CapsuleLayer(num_capsules=32, num_in_capsules=1, in_channels=256, out_channels=8,
-        #                                      kernel_size=9, stride=2)
-
-        # # self.temp = CapsuleLayer(num_capsules=32, num_in_capsules=32, in_channels=8, out_channels=8,
-        #                                      # kernel_size=2, stride=1)
+        self.loss_weights = loss_weights
         
-        # self.digit_capsules = CapsuleLayer(num_capsules=self.num_classes, num_in_capsules=32, in_channels=8,out_channels=16,kernel_size = 6, stride =1)
-
 
         self.features = []
         for conv_param in conv_layers:
@@ -290,6 +281,7 @@ class Dynamic_Capsule_Model(Dynamic_Capsule_Model_Super):
         self.features = nn.Sequential(*self.features)
 
         if self.reconstruct:
+            self.reconstruction_loss = nn.MSELoss(size_average=False)
             self.decoder = nn.Sequential(
                 nn.Linear(out_channels * self.num_classes, 512),
                 nn.ReLU(inplace=True),
@@ -303,30 +295,28 @@ class Dynamic_Capsule_Model(Dynamic_Capsule_Model_Super):
 
 
 class Network:
-    def __init__(self,n_classes=10,r=3,input_size=96,conv_layers = None, caps_layers = None,reconstruct=False):
+    def __init__(self,n_classes=10,r=3,conv_layers = None, caps_layers = None,reconstruct=False, init= False, loss_weights = None):
         if conv_layers is None:
             conv_layers = [[256,9,1]]
         if caps_layers is None:
             caps_layers = [[32,8,9,2],[n_classes,16,6,1]]
 
-        model = Dynamic_Capsule_Model(n_classes,conv_layers,caps_layers,r,reconstruct=reconstruct)
+        model = Dynamic_Capsule_Model(n_classes,conv_layers,caps_layers,r,reconstruct=reconstruct, loss_weights = loss_weights)
 
-        
-        # for idx_m,m in enumerate(model.modules()):
-        #     if isinstance(m, nn.Conv2d) or isinstance(m,nn.Linear):
-        #         # print m
-        #         nn.init.xavier_normal(m.weight.data,std=5e-2)
-        #         nn.init.constant(m.bias.data,0.)
-        #     elif isinstance(m, CapsuleLayer):
-        #         if m.num_in_capsules==1:
-        #             nn.init.normal(m.capsules.weight.data,std=0.1)
-        #             nn.init.constant(m.capsules.bias.data,0.)
-        #         else:
-        #             nn.init.normal(m.route_weights.data, mean=0, std=0.1)
-                    
-                # nn.init.normal(m.weight.data,std=0.1)
-        #         nn.init.constant(m.weight.data,1.)
-        #         nn.init.constant(m.bias.data,0.)
+        if init:
+            for idx_m,m in enumerate(model.modules()):
+                if isinstance(m, nn.Conv2d) or isinstance(m,nn.Linear):
+                    # print m
+                    nn.init.xavier_normal(m.weight.data)
+                    nn.init.constant(m.bias.data,0.)
+                elif isinstance(m, CapsuleLayer):
+                    if m.num_in_capsules==1:
+                        nn.init.normal(m.capsules.weight.data,std=0.1)
+                        nn.init.constant(m.capsules.bias.data,0.)
+                    else:
+                        nn.init.normal(m.route_weights.data, mean=0, std=0.1)
+                        nn.init.constant(m.bias.data,0.)
+                        
                 
         self.model = model
 
