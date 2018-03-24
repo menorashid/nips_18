@@ -44,16 +44,29 @@ def train_mnist(wdecay,lr,route_iter,model_name='dynamic_capsules',epoch_stuff=[
         
     if res:
         print 'Nothing to resume'
-        return
+        num_epochs_res = 100
+        strs_append_list_res = ['reconstruct',reconstruct,'shift',criterion_str,init,'wdecay',wdecay,num_epochs_res]+dec_after+lr
+        if loss_weights is not None:
+            strs_append_list = strs_append_list_res+['lossweights']+loss_weights
+        strs_append_res = '_'+'_'.join([str(val) for val in strs_append_list_res])    
+        out_dir_train_res =  os.path.join(out_dir_meta,pre_pend+strs_append_res)
+        model_file = os.path.join(out_dir_train_res,'model_'+str(num_epochs_res-1)+'.pt')
+        epoch_start = num_epochs_res
+        assert os.path.exists(model_file)
+        print model_file,epoch_start
+        
     else:
         model_file = None    
-        margin_params = None
-        
-        out_dir_train =  os.path.join(out_dir_meta,pre_pend+strs_append)
-        final_model_file = os.path.join(out_dir_train,'model_'+str(num_epochs-1)+'.pt')
-        if os.path.exists(final_model_file):
-            print 'skipping',final_model_file
-            raw_input()
+    
+    margin_params = None
+    
+    out_dir_train =  os.path.join(out_dir_meta,pre_pend+strs_append)
+    final_model_file = os.path.join(out_dir_train,'model_'+str(num_epochs-1)+'.pt')
+    print out_dir_train
+    
+    if os.path.exists(final_model_file):
+        print 'skipping',final_model_file
+        raw_input()
     
     batch_size = 256
     batch_size_val = 256
@@ -139,14 +152,14 @@ def train_mnist(wdecay,lr,route_iter,model_name='dynamic_capsules',epoch_stuff=[
 
 
 def main():
-    epoch_stuff = [936,100]
+    epoch_stuff = [936,500]
     reconstruct = False
     exp = True
     model_name = 'dynamic_capsules'
     lr = [0.001,0.001]
     route_iter = 3
 
-    train_mnist(wdecay =0, lr = lr ,route_iter=   route_iter,model_name=model_name,epoch_stuff=epoch_stuff, reconstruct = reconstruct,  exp = exp)
+    train_mnist(wdecay =0, lr = lr ,route_iter=   route_iter,model_name=model_name,epoch_stuff=epoch_stuff, reconstruct = reconstruct,  exp = exp, res = True)
 
 
 if __name__=='__main__':
